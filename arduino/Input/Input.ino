@@ -7,20 +7,26 @@ const char END_BYTE = (char) 4;
 // === Device names ===
 const String DEVICE_NAME_KEYPAD = "keypad";
 const String DEVICE_NAME_PREFIX_POT = "pot";
+const String DEVICE_NAME_BUTTONS = "buttons";
 
 // ==== Keypad settings ===
 const int NUM_ROWS = 4;
 const int NUM_COLS = 4;
-const unsigned long DEBOUNCE_DELAY_MS = 50;
+const unsigned long KEYPAD_DEBOUNCE_DELAY_MS = 50;
 
 // === Pot settings ===
 const int POT_CHANGE_MARGIN = 10;
 const int NUM_POTS = 2;
 
+// === Button settings ===
+const int NUM_BUTTONS = 4;
+const unsigned long BUTTONS_DEBOUNCE_DELAY_MS = 50;
+
 // === Pinout ===
 byte rowPins[NUM_ROWS] = {9, 8, 7, 6};
 byte colPins[NUM_COLS] = {5, 4, 3, 2};
 byte potPins[NUM_POTS] = {A0, A1};
+byte buttonPins[NUM_BUTTONS] = {A2, A3, A4, A5};
 
 // === Keymap ===
 char keys[NUM_ROWS][NUM_COLS] = {
@@ -33,6 +39,7 @@ char keys[NUM_ROWS][NUM_COLS] = {
 // === Goobal variables ===
 unsigned long timestampLastKeypadPress = 0;
 int lastPotValues[NUM_POTS];
+unsigned long timestampsLastButtonPresses[NUM_BUTTONS];
 
 void setup() {
   Serial.begin(9600);
@@ -40,6 +47,7 @@ void setup() {
 
   initKeypad();
   initPots();
+  initButtons();
 
   Serial.println("Ready!");
 }
@@ -60,9 +68,17 @@ void initPots() {
   }
 }
 
+void initButtons() {
+  for (int index; index < NUM_BUTTONS; index++) {
+    pinMode(buttonPins[index], INPUT_PULLUP);
+    timestampsLastButtonPresses[index] = 0;
+  }
+}
+
 void loop() {
   readKeypadInput();
   readPotInputs();
+  readButtonInputs();
 }
 
 void readKeypadInput() {
@@ -74,8 +90,8 @@ void readKeypadInput() {
       if (digitalRead(colPins[col]) == LOW) {
         unsigned long timestamp = millis();
         unsigned long timeSinceLastButtonPress = timestamp - timestampLastKeypadPress;
-        if (timeSinceLastButtonPress > DEBOUNCE_DELAY_MS) {
-          reportButtonPress(row, col);  
+        if (timeSinceLastButtonPress > KEYPAD_DEBOUNCE_DELAY_MS) {
+          reportKeypadPress(row, col);  
         }
         timestampLastKeypadPress = timestamp;
       }
@@ -86,15 +102,24 @@ void readKeypadInput() {
 
 void readPotInputs() {
   for (int potIndex = 0; potIndex < NUM_POTS; potIndex++) {
-    readPotInput(potIndex);
+    int potValue = analogRead(potPins[potIndex]);
+    if (!isEqualWithinMargin(potValue, lastPotValues[potIndex], POT_CHANGE_MARGIN)) {
+      reportPotChange(potIndex, potValue);
+      lastPotValues[potIndex] = potValue;
+    }
   }
 }
 
-void readPotInput(int potIndex) {
-  int potValue = analogRead(potPins[potIndex]);
-  if (!isEqualWithinMargin(potValue, lastPotValues[potIndex], POT_CHANGE_MARGIN)) {
-    reportPotChange(potIndex, potValue);
-    lastPotValues[potIndex] = potValue;
+void readButtonInputs() {
+  for (int btnIndex = 0; btnIndex < NUM_BUTTONS; btnIndex++) {
+    if (digitalRead(buttonPins[btnIndex]) == LOW) {
+      unsigned long timestamp = millis();
+      unsigned long timeSinceLastPress = timestamp - timestampsLastButtonPresses[btnIndex];
+      if (timeSinceLastPress > BUTTONS_DEBOUNCE_DELAY_MS) {
+        reportButtonPress(btnIndex);
+      }
+      timestampsLastButtonPresses[btnIndex] = timestamp;
+    }
   }
 }
 
@@ -102,8 +127,12 @@ void reportPotChange(int potIndex, int potValue) {
   sendIntegerInputEvent(DEVICE_NAME_PREFIX_POT + String(potIndex), potValue);
 }
 
-void reportButtonPress(int row, int col) {
+void reportKeypadPress(int row, int col) {
   sendStringInputEvent(DEVICE_NAME_KEYPAD, String(keys[row][col]));
+}
+
+void reportButtonPress(int btnIndex) {
+  sendIntegerInputEvent(DEVICE_NAME_BUTTONS, btnIndex);
 }
 
 bool isEqualWithinMargin(int a, int b, int margin) {
