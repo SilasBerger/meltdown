@@ -48,9 +48,16 @@ fn scan_devices() {
 }
 
 #[derive(Debug, Deserialize)]
-struct InputMessage {
-    device: String,
-    #[serde(rename = "inputType")]
-    input_type: String,
-    value: String,
+#[serde(tag = "inputType")]
+enum InputMessage {
+    #[serde(rename = "string")]
+    String {
+        device: String,
+        value: String,
+    },
+    #[serde(rename = "int")]
+    Integer {
+        device: String,
+        value: i32,
+    },
 }
