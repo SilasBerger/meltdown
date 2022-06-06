@@ -6,7 +6,7 @@ const char END_BYTE = (char) 4;
 
 // === Device names ===
 const String DEVICE_NAME_KEYPAD = "keypad";
-const String DEVICE_NAME_PREFIX_POT = "pot";
+const String DEVICE_NAME_POTS = "pots";
 const String DEVICE_NAME_BUTTONS = "buttons";
 
 // ==== Keypad settings ===
@@ -123,16 +123,16 @@ void readButtonInputs() {
   }
 }
 
-void reportPotChange(int potIndex, int potValue) {
-  sendIntegerInputEvent(DEVICE_NAME_PREFIX_POT + String(potIndex), potValue);
+void reportKeypadPress(int row, int col) {
+  sendMessage("{\"device\": \"" + DEVICE_NAME_KEYPAD + "\", \"value\": \"" + String(keys[row][col]) + "\"}");
 }
 
-void reportKeypadPress(int row, int col) {
-  sendStringInputEvent(DEVICE_NAME_KEYPAD, String(keys[row][col]));
+void reportPotChange(int potIndex, int potValue) {
+  sendMessage("{\"device\": \"" + DEVICE_NAME_POTS + "\", \"index\": " + String(potIndex) + ", \"value\": " + String(potValue) + "}");
 }
 
 void reportButtonPress(int btnIndex) {
-  sendIntegerInputEvent(DEVICE_NAME_BUTTONS, btnIndex);
+  sendMessage("{\"device\": \"" + DEVICE_NAME_BUTTONS + "\", \"index\": " + String(btnIndex) + "}");
 }
 
 bool isEqualWithinMargin(int a, int b, int margin) {
